@@ -85,7 +85,7 @@
 
         const matchLangsung = ayahs.filter(a => a.containsQuery);
         const tidakLangsung = ayahs.filter(a => !a.containsQuery);
-        const finalList = [...matchLangsung, ...tidakLangsung];
+        const finalList = matchLangsung;
 
         if (finalList.length === 0) {
           resDiv.innerHTML = '❌ Tidak ditemukan (semua ayat gagal diambil).';
