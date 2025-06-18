@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Pencarian Al-Qur'an Akurat</title>
+  <title>Pencarian Al-Qur'an</title>
   <style>
     body { font-family:sans-serif; max-width:700px; margin:auto; padding:2em; }
     input, button { padding:0.5em; font-size:1em; }
@@ -15,23 +15,19 @@
 <body>
 
   <h2>Cari Kata dalam Al-Qur'an</h2>
-  <input type="text" id="query" placeholder="Contoh: الرحمن, kasih sayang" onkeydown="if(event.key === 'Enter') searchQuran()" />
+  <input type="text" id="query" placeholder="Contoh: الرحمن, kasih sayang" />
   <button onclick="searchQuran()">Cari</button>
 
   <div id="results"></div>
 
   <script>
+    // Tentukan base URL otomatis
     const base = window.location.hostname.includes("netlify")
       ? "https://tadabbur.netlify.app"
       : "https://dickymiswardi.github.io/tadabbur";
 
-    function stripHarakat(str) {
-      return str.normalize('NFD').replace(/[ً-ٟ]/g, '');
-    }
-
     async function searchQuran() {
-      const qRaw = document.getElementById('query').value.trim();
-      const q = stripHarakat(qRaw);
+      const q = document.getElementById('query').value.trim();
       const resDiv = document.getElementById('results');
       resDiv.innerHTML = '';
 
@@ -40,7 +36,7 @@
       resDiv.innerHTML = '🔍 Sedang mencari...';
 
       try {
-        const res = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(qRaw)}/all/ar`);
+        const res = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(q)}/all/ar`);
         const json = await res.json();
 
         if (!json.data?.matches || json.data.matches.length === 0) {
@@ -49,55 +45,22 @@
         }
 
         const seen = new Set();
-        const filteredMatches = json.data.matches.filter(m => {
+        const output = json.data.matches.filter(m => {
           const key = `${m.surah.number}:${m.numberInSurah}`;
           if (seen.has(key)) return false;
           seen.add(key);
           return true;
         });
 
-        const fetchAyahs = filteredMatches.slice(0, 20).map(async match => {
+        resDiv.innerHTML = output.slice(0, 20).map(match => {
           const surah = match.surah.number;
+          const name = match.surah.name;
           const ayat = match.numberInSurah;
-          const url = `https://api.alquran.cloud/v1/ayah/${surah}:${ayat}/ar`;
-          try {
-            const response = await fetch(url);
-            const data = await response.json();
-            const ayatText = data.data.text;
-            return {
-              success: true,
-              text: ayatText,
-              surahName: data.data.surah.name,
-              surahNumber: data.data.surah.number,
-              ayatNumber: data.data.numberInSurah,
-              containsQuery: stripHarakat(ayatText).includes(q)
-            };
-          } catch {
-            return { success: false };
-          }
-        });
-
-        const results = await Promise.allSettled(fetchAyahs);
-
-        const ayahs = results
-          .filter(r => r.status === 'fulfilled' && r.value.success)
-          .map(r => r.value);
-
-        const matchLangsung = ayahs.filter(a => a.containsQuery);
-        const tidakLangsung = ayahs.filter(a => !a.containsQuery);
-        const finalList = [...matchLangsung, ...tidakLangsung];
-
-        if (finalList.length === 0) {
-          resDiv.innerHTML = '❌ Tidak ditemukan (semua ayat gagal diambil).';
-          return;
-        }
-
-        resDiv.innerHTML = finalList.map(a => {
-          const link = `${base}/?surah=${a.surahNumber}&ayat=${a.ayatNumber}`;
+          const url = `${base}/?surah=${surah}&ayat=${ayat}`;
           return `
             <div class="result">
-              <div class="meta">📖 <a href="${link}" target="_blank">${a.surahName} (${a.surahNumber}:${a.ayatNumber})</a></div>
-              <div class="ayah">${a.text}</div>
+              <div class="meta">📖 <a href="${url}" target="_blank">${name} (${surah}:${ayat})</a></div>
+              <div class="ayah">${match.text}</div>
             </div>
           `;
         }).join('');
