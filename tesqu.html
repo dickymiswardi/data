@@ -15,7 +15,7 @@
 <body>
 
   <h2>Cari Kata dalam Al-Qur'an</h2>
-  <input type="text" id="query" placeholder="Contoh: الرحمن, kasih sayang" onkeydown="if(event.key === 'Enter') searchQuran()" />
+  <input type="text" id="query" placeholder="Contoh: الرحمن الرحيم" onkeydown="if(event.key === 'Enter') searchQuran()" />
   <button onclick="searchQuran()">Cari</button>
 
   <div id="results"></div>
@@ -49,54 +49,24 @@
         }
 
         const seen = new Set();
-        const filteredMatches = json.data.matches.filter(m => {
+        const exactMatches = json.data.matches.filter(m => {
           const key = `${m.surah.number}:${m.numberInSurah}`;
+          const matchText = stripHarakat(m.text);
           if (seen.has(key)) return false;
           seen.add(key);
-          return true;
+          return matchText.includes(q); // hanya exact phrase match
         });
 
-        const fetchAyahs = filteredMatches.slice(0, 20).map(async match => {
-          const surah = match.surah.number;
-          const ayat = match.numberInSurah;
-          const url = `https://api.alquran.cloud/v1/ayah/${surah}:${ayat}/ar`;
-          try {
-            const response = await fetch(url);
-            const data = await response.json();
-            const ayatText = data.data.text;
-            return {
-              success: true,
-              text: ayatText,
-              surahName: data.data.surah.name,
-              surahNumber: data.data.surah.number,
-              ayatNumber: data.data.numberInSurah,
-              containsQuery: stripHarakat(ayatText).includes(q)
-            };
-          } catch {
-            return { success: false };
-          }
-        });
-
-        const results = await Promise.allSettled(fetchAyahs);
-
-        const ayahs = results
-          .filter(r => r.status === 'fulfilled' && r.value.success)
-          .map(r => r.value);
-
-        const matchLangsung = ayahs.filter(a => a.containsQuery);
-        const tidakLangsung = ayahs.filter(a => !a.containsQuery);
-        const finalList = matchLangsung;
-
-        if (finalList.length === 0) {
-          resDiv.innerHTML = '❌ Tidak ditemukan (semua ayat gagal diambil).';
+        if (exactMatches.length === 0) {
+          resDiv.innerHTML = '❌ Tidak ditemukan (tidak ada frasa cocok persis).';
           return;
         }
 
-        resDiv.innerHTML = finalList.map(a => {
-          const link = `${base}/?surah=${a.surahNumber}&ayat=${a.ayatNumber}`;
+        resDiv.innerHTML = exactMatches.map(a => {
+          const link = `${base}/?surah=${a.surah.number}&ayat=${a.numberInSurah}`;
           return `
             <div class="result">
-              <div class="meta">📖 <a href="${link}" target="_blank">${a.surahName} (${a.surahNumber}:${a.ayatNumber})</a></div>
+              <div class="meta">📖 <a href="${link}" target="_blank">${a.surah.name} (${a.surah.number}:${a.numberInSurah})</a></div>
               <div class="ayah">${a.text}</div>
             </div>
           `;
