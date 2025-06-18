@@ -2,19 +2,16 @@
 <html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <title>Pencarian Kata Qur'an</title>
+  <title>Cari Kata - Hanya Surah & Ayat</title>
   <style>
-    body { font-family:sans-serif; max-width: 700px; margin: auto; padding: 2em; }
-    input, button { padding: 0.5em; font-size: 1em; }
-    .result { margin-top: 1em; padding: 1em; background: #f9f9f9; border-radius: 8px; }
-    .ayah { direction: rtl; font-size: 1.5em; margin-top: 0.5em; }
-    .meta { font-size: 0.95em; color: #444; }
-    a { text-decoration: none; color: #007b8a; }
+    body { font-family: sans-serif; max-width: 700px; margin: auto; padding: 2em; }
+    input, button { font-size: 1em; padding: 0.5em; }
+    .result { margin-top: 1em; }
   </style>
 </head>
 <body>
 
-  <h2>Cari Kata dalam Al-Qur'an</h2>
+  <h2>Cari Ayat Berdasarkan Kata</h2>
   <input type="text" id="query" placeholder="Contoh: الرحمن, kasih sayang" />
   <button onclick="searchQuran()">Cari</button>
 
@@ -26,9 +23,9 @@
       const resDiv = document.getElementById('results');
       resDiv.innerHTML = '';
 
-      if (!q) return resDiv.textContent = '❗ Masukkan kata pencarian.';
+      if (!q) return resDiv.textContent = '❗ Masukkan kata kunci.';
 
-      resDiv.innerHTML = '🔍 Sedang mencari...';
+      resDiv.innerHTML = '🔍 Mencari...';
 
       try {
         const res = await fetch(`https://api.alquran.cloud/v1/search/${encodeURIComponent(q)}/all/ar`);
@@ -39,27 +36,23 @@
           return;
         }
 
-        // Hapus duplikat ayat
-        const seen = new Set();
-        const output = json.data.matches.filter(m => {
-          const key = `${m.surah.number}:${m.numberInSurah}`;
-          if (seen.has(key)) return false;
-          seen.add(key);
-          return true;
-        });
+        const uniqueLinks = new Set(); // Hindari duplikat
 
-        resDiv.innerHTML = output.slice(0, 20).map(match => {
-          const surah = match.surah.number;
-          const name = match.surah.name;
-          const ayat = match.numberInSurah;
-          const link = `https://dickymiswardi.github.io/tadabbur/?surah=${surah}&ayat=${ayat}`;
-          return `
-            <div class="result">
-              <div class="meta">📖 <a href="${link}" target="_blank">${name} (${surah}:${ayat})</a></div>
-              <div class="ayah">${match.text}</div>
-            </div>
-          `;
-        }).join('');
+        resDiv.innerHTML = json.data.matches
+          .filter(match => {
+            const key = `${match.surah.number}:${match.numberInSurah}`;
+            if (uniqueLinks.has(key)) return false;
+            uniqueLinks.add(key);
+            return true;
+          })
+          .slice(0, 20)
+          .map(match => {
+            const surah = match.surah.number;
+            const ayat = match.numberInSurah;
+            const url = `https://dickymiswardi.github.io/tadabbur/?surah=${surah}&ayat=${ayat}`;
+            return `<div class="result"><a href="${url}" target="_blank">📖 Surah ${surah}, Ayat ${ayat}</a></div>`;
+          })
+          .join('');
 
       } catch (err) {
         console.error(err);
