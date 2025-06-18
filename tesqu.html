@@ -60,23 +60,37 @@
           const surah = match.surah.number;
           const ayat = match.numberInSurah;
           const url = `https://api.alquran.cloud/v1/ayah/${surah}:${ayat}/ar`;
-          const response = await fetch(url);
-          const data = await response.json();
-          const ayatText = data.data.text;
-          return {
-            text: ayatText,
-            surahName: data.data.surah.name,
-            surahNumber: data.data.surah.number,
-            ayatNumber: data.data.numberInSurah,
-            containsQuery: stripHarakat(ayatText).includes(q)
-          };
+          try {
+            const response = await fetch(url);
+            const data = await response.json();
+            const ayatText = data.data.text;
+            return {
+              success: true,
+              text: ayatText,
+              surahName: data.data.surah.name,
+              surahNumber: data.data.surah.number,
+              ayatNumber: data.data.numberInSurah,
+              containsQuery: stripHarakat(ayatText).includes(q)
+            };
+          } catch {
+            return { success: false };
+          }
         });
 
-        const ayahs = await Promise.all(fetchAyahs);
+        const results = await Promise.allSettled(fetchAyahs);
+
+        const ayahs = results
+          .filter(r => r.status === 'fulfilled' && r.value.success)
+          .map(r => r.value);
 
         const matchLangsung = ayahs.filter(a => a.containsQuery);
         const tidakLangsung = ayahs.filter(a => !a.containsQuery);
         const finalList = [...matchLangsung, ...tidakLangsung];
+
+        if (finalList.length === 0) {
+          resDiv.innerHTML = '❌ Tidak ditemukan (semua ayat gagal diambil).';
+          return;
+        }
 
         resDiv.innerHTML = finalList.map(a => {
           const link = `${base}/?surah=${a.surahNumber}&ayat=${a.ayatNumber}`;
